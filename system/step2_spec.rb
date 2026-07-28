@@ -1,4 +1,4 @@
-require 'rails_helper'
+require_relative '../rails_helper'
 
 RSpec.describe 'step2', type: :system do
 
@@ -97,11 +97,12 @@ RSpec.describe 'step2', type: :system do
       end
     end
     describe 'seedデータを使って、50件分のタスクデータを投入できるようにすること' do
-      before do
-        load Rails.root.join("db/seeds.rb")
-      end
       it 'seedデータを使って、50件分のタスクデータを投入できるようにすること' do
-        expect(Task.all.count).to be >= 50
+        task_count_before_seed = Task.count
+
+        load Rails.root.join('db/seeds.rb')
+
+        expect(Task.count - task_count_before_seed).to be >= 50
       end
     end
   end

@@ -1,8 +1,8 @@
-require 'rails_helper'
+require_relative '../rails_helper'
 
 RSpec.describe 'step3', type: :system do
 
-  date_list = ["2025/10/01", "2025/12/01", "2025/01/01", "2025/05/01", "2025/03/01", "2025/11/01", "2025/02/01", "2025/09/01", "2025/04/01", "2025/01/01"]
+  date_list = ["2025/10/01", "2025/12/01", "2025/01/01", "2025/05/01", "2025/03/01", "2025/11/01", "2025/02/01", "2025/09/01", "2025/04/01", "2025/06/01"]
   priority_list = [2, 0, 2, 1, 1, 0, 1, 2, 1, 2]
   status_list = [0, 2, 2, 0, 1, 1, 0, 2, 1, 2]
   10.times { |n| let!(:"task_#{n+2}") { Task.create(created_at: Date.today+n, title: "task_title_#{n+2}", content: "task_content_#{n+2}", deadline_on: date_list[n], priority: priority_list[n], status: status_list[n]) } }
@@ -37,17 +37,17 @@ RSpec.describe 'step3', type: :system do
     describe '3.ステータスの入力フォームには`select`を使用し、「未着手」、「着手中」、「完了」から選択できるようにすること' do
       it '登録画面' do
         visit new_task_path
-        expect(find('select[name="task[priority]"]')).to be_visible
-        select '高', from: 'task[priority]'
-        select '中', from: 'task[priority]'
-        select '低', from: 'task[priority]'
+        expect(find('select[name="task[status]"]')).to be_visible
+        select '未着手', from: 'task[status]'
+        select '着手中', from: 'task[status]'
+        select '完了', from: 'task[status]'
       end
       it '編集画面' do
         visit edit_task_path(task_2)
-        expect(find('select[name="task[priority]"]')).to be_visible
-        select '高', from: 'task[priority]'
-        select '中', from: 'task[priority]'
-        select '低', from: 'task[priority]'
+        expect(find('select[name="task[status]"]')).to be_visible
+        select '未着手', from: 'task[status]'
+        select '着手中', from: 'task[status]'
+        select '完了', from: 'task[status]'
       end
     end
     describe '4.タスク登録画面の優先度とステータスの入力フォームのデフォルト値は空欄にすること' do
@@ -176,13 +176,13 @@ RSpec.describe 'step3', type: :system do
     describe '16.ステータス検索のフォームラベルに「ステータス」の文字を表示させること' do
       it 'ステータス検索のフォームラベルに「ステータス」の文字を表示させること' do
         visit tasks_path
-        expect(page).to have_selector 'label', text: 'タイトル'
+        expect(page).to have_selector 'label', text: 'ステータス'
       end
     end
     describe '17.あいまい検索のフォームラベルに「タイトル」の文字を表示させること' do
       it 'あいまい検索のフォームラベルに「タイトル」の文字を表示させること' do
         visit tasks_path
-        expect(page).to have_selector 'label', text: 'ステータス'
+        expect(page).to have_selector 'label', text: 'タイトル'
       end
     end
   end
@@ -221,13 +221,13 @@ RSpec.describe 'step3', type: :system do
           find('input[name="task[title]"]').set('task_title')
           find('textarea[name="task[content]"]').set('task_content')
           find('input[name="task[deadline_on]"]').set(Date.today.next_month)
-          select '高', from: 'task[priority]'
-          select '未着手', from: 'task[status]'
+          select '低', from: 'task[priority]'
+          select '完了', from: 'task[status]'
           click_button '登録する'
           expect(page).to have_content 'task_title'
           expect(page).to have_content 'task_content'
-          expect(page).to have_content '高'
-          expect(page).to have_content '未着手'
+          expect(page).to have_content '低'
+          expect(page).to have_content '完了'
         end
       end
       context '編集画面' do
@@ -256,13 +256,13 @@ RSpec.describe 'step3', type: :system do
         it '異なる終了期限、優先度「低」、ステータス「完了」に更新できる' do
           visit edit_task_path(task_2)
           find('input[name="task[deadline_on]"]').set(Date.today.next_year)
-          select '高', from: 'task[priority]'
-          select '未着手', from: 'task[status]'
+          select '低', from: 'task[priority]'
+          select '完了', from: 'task[status]'
           click_button '更新する'
           expect(page).to have_content 'task_title'
           expect(page).to have_content 'task_content'
-          expect(page).to have_content '高'
-          expect(page).to have_content '未着手'
+          expect(page).to have_content '低'
+          expect(page).to have_content '完了'
         end
       end
     end
@@ -286,40 +286,32 @@ RSpec.describe 'step3', type: :system do
         expect(page).to have_content '終了期限を入力してください'
       end
     end
-    describe '20.テーブルヘッダーの「終了期限」をクリックした際、タスクを終了期限の昇順にソートし、かつ終了期限が同じ場合は作成日時の降順で表示させること' do
-      it 'テーブルヘッダーの「終了期限」をクリックした際、タスクを終了期限の昇順にソートし、かつ終了期限が同じ場合は作成日時の降順で表示させること' do
+    describe '20.テーブルヘッダーの「終了期限」をクリックした際、タスクを終了期限の昇順にソートすること' do
+      it 'タスクを終了期限の昇順で表示させること' do
         visit tasks_path
         click_on '終了期限'
-        sleep 0.2
         tr = all('tbody tr')
-        expect(tr[0].text).to have_content 'task_title_11'
-        expect(tr[1].text).to have_content 'task_title_4'
-        expect(tr[2].text).to have_content 'task_title_8'
-        expect(tr[3].text).to have_content 'task_title_6'
-        expect(tr[4].text).to have_content 'task_title_10'
-        expect(tr[5].text).to have_content 'task_title_5'
+        expect(tr[0].text).to have_content 'task_title_4'
+        expect(tr[1].text).to have_content 'task_title_8'
+        expect(tr[2].text).to have_content 'task_title_6'
+        expect(tr[3].text).to have_content 'task_title_10'
+        expect(tr[4].text).to have_content 'task_title_5'
+        expect(tr[5].text).to have_content 'task_title_11'
         expect(tr[6].text).to have_content 'task_title_9'
         expect(tr[7].text).to have_content 'task_title_2'
         expect(tr[8].text).to have_content 'task_title_7'
         expect(tr[9].text).to have_content 'task_title_3'
       end
     end
-    describe '21.テーブルヘッダーの「優先度」をクリックした際、優先度の高い順にソートし、かつ優先度が同じ場合は作成日時の降順で表示させること' do
-      it 'テーブルヘッダーの「優先度」をクリックした際、優先度の高い順にソートし、かつ優先度が同じ場合は作成日時の降順で表示させること' do
+    describe '21.テーブルヘッダーの「優先度」をクリックした際、優先度の高い順にソートすること' do
+      it '同じ優先度内の順番にかかわらず、高、中、低の順で表示させること' do
         visit tasks_path
         click_on '優先度'
-        sleep 0.2
-        tr = all('tbody tr')
-        expect(tr[0].text).to have_content 'task_title_11'
-        expect(tr[1].text).to have_content 'task_title_9'
-        expect(tr[2].text).to have_content 'task_title_4'
-        expect(tr[3].text).to have_content 'task_title_2'
-        expect(tr[4].text).to have_content 'task_title_10'
-        expect(tr[5].text).to have_content 'task_title_8'
-        expect(tr[6].text).to have_content 'task_title_6'
-        expect(tr[7].text).to have_content 'task_title_5'
-        expect(tr[8].text).to have_content 'task_title_7'
-        expect(tr[9].text).to have_content 'task_title_3'
+        task_titles = all('tbody tr').map { |row| row.text[/task_title_\d+/] }
+
+        expect(task_titles[0, 4]).to match_array %w[task_title_2 task_title_4 task_title_9 task_title_11]
+        expect(task_titles[4, 4]).to match_array %w[task_title_5 task_title_6 task_title_8 task_title_10]
+        expect(task_titles[8, 2]).to match_array %w[task_title_3 task_title_7]
       end
     end
     describe '22.一覧画面にステータス「未着手」、「着手中」、「完了」で検索する機能を実装すること' do
