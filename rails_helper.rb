@@ -1,7 +1,9 @@
-# This file is copied to spec/ when you run 'rails generate rspec:install'
-require 'spec_helper'
+# This file is loaded from the versioned evaluator, which may live outside the
+# learner application's spec directory.
+require_relative 'spec_helper'
 ENV['RAILS_ENV'] ||= 'test'
-require File.expand_path('../config/environment', __dir__)
+app_root = ENV.fetch('MANYO_APP_ROOT') { File.expand_path('..', __dir__) }
+require File.join(app_root, 'config/environment')
 # Prevent database truncation if the environment is production
 abort("The Rails environment is running in production mode!") if Rails.env.production?
 require 'rspec/rails'
@@ -32,7 +34,11 @@ rescue ActiveRecord::PendingMigrationError => e
 end
 RSpec.configure do |config|
   # Remove this line if you're not using ActiveRecord or ActiveRecord fixtures
-  config.fixture_path = "#{::Rails.root}/spec/fixtures"
+  if config.respond_to?(:fixture_paths=)
+    config.fixture_paths = [Rails.root.join('spec/fixtures')]
+  else
+    config.fixture_path = Rails.root.join('spec/fixtures').to_s
+  end
 
   # If you're not using ActiveRecord, or you'd prefer not to run each of your
   # examples within a transaction, remove the following line or assign false

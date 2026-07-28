@@ -1,0 +1,80 @@
+name: Evaluator compatibility
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  rails-8-1:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18.4-alpine
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      BUNDLE_GEMFILE: ${{ github.workspace }}/evaluation/Gemfile.evaluation
+      DATABASE_URL: postgres://postgres@localhost:5432/manyo_test
+      MANYO_APP_ROOT: ${{ github.workspace }}/app
+      RAILS_ENV: test
+      SECRET_KEY_BASE: evaluator-compatibility-test
+
+    steps:
+      - name: Check out evaluator
+        uses: actions/checkout@v7
+        with:
+          path: evaluation
+
+      - name: Check out Rails starter
+        uses: actions/checkout@v7
+        with:
+          repository: diveintocode-corp/cdp_web_manyo_task
+          ref: master
+          path: app
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 4.0.5
+          bundler: 4.0.10
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24.18.0
+          cache: yarn
+          cache-dependency-path: app/yarn.lock
+
+      - name: Install JavaScript dependencies
+        working-directory: app
+        run: yarn install --frozen-lockfile
+
+      - name: Install Ruby dependencies
+        run: |
+          cp app/Gemfile.lock evaluation/Gemfile.evaluation.lock
+          bundle install --jobs 4 --retry 3
+
+      - name: Prepare test database
+        working-directory: app
+        run: bundle exec rails db:prepare
+
+      - name: Load every evaluation
+        working-directory: app
+        run: |
+          for step in step1 step2 step3 step4 step5; do
+            bundle exec rspec "../evaluation/system/${step}_spec.rb" --dry-run
+          done

@@ -1,0 +1,9 @@
+app_root = ENV.fetch('MANYO_APP_ROOT') do
+  File.expand_path('..', __dir__)
+end
+
+eval_gemfile File.join(app_root, 'Gemfile')
+
+group :test do
+  gem 'rspec-rails', '~> 8.0'
+end
