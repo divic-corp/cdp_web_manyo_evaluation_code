@@ -11,7 +11,15 @@ permissions:
 
 jobs:
   rails-8-1:
+    name: Rails 8.1 / Ruby ${{ matrix.ruby }}
     runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby:
+          - '4.0.5'
+          - '4.0.6'
 
     services:
       postgres:
@@ -49,7 +57,7 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: 4.0.5
+          ruby-version: ${{ matrix.ruby }}
           bundler: 4.0.10
 
       - name: Set up Node
