@@ -189,13 +189,13 @@ RSpec.describe 'step1', type: :system do
         it "タイトルが未入力の場合、「Title can't be blank」というバリデーションメッセージが表示させる" do
           visit new_task_path
           fill_in 'Title', with: ''
-          fill_in 'Content', with: ''
+          fill_in 'Content', with: 'sample content'
           find('#create-task').click
           expect(page).to have_content "Title can't be blank"
         end
         it "内容が未入力の場合、「Content can't be blank」というバリデーションメッセージが表示させる" do
           visit new_task_path
-          fill_in 'Title', with: ''
+          fill_in 'Title', with: 'sample title'
           fill_in 'Content', with: ''
           find('#create-task').click
           expect(page).to have_content "Content can't be blank"
@@ -213,13 +213,13 @@ RSpec.describe 'step1', type: :system do
         it "タイトルが未入力の場合、「Title can't be blank」というバリデーションメッセージが表示させる" do
           visit edit_task_path(task)
           fill_in 'Title', with: ''
-          fill_in 'Content', with: ''
+          fill_in 'Content', with: task.content
           find('#update-task').click
           expect(page).to have_content "Title can't be blank"
         end
         it "内容が未入力の場合、「Content can't be blank」というバリデーションメッセージが表示させる" do
           visit edit_task_path(task)
-          fill_in 'Title', with: ''
+          fill_in 'Title', with: task.title
           fill_in 'Content', with: ''
           find('#update-task').click
           expect(page).to have_content "Content can't be blank"
