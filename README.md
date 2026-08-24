@@ -4,7 +4,7 @@
 
 ## 対応バージョン
 
-- 評価コード: `rails-8.1-v1.0.0`
+- 評価コード: `rails-8.1-v1.0.1`
 - Ruby: 4.0系（4.0.0以上、4.1.0未満。標準環境は4.0.5）
 - Ruby on Rails: 8.1.3
 - PostgreSQL: 18.4
@@ -48,8 +48,8 @@ bundle exec rspec system/step1_spec.rb
 5. `VERSION`と同じannotated tagを作成してpushする
 
 ```bash
-git tag -a rails-8.1-v1.0.0 -m "Manyo evaluator for Rails 8.1"
-git push origin rails-8.1-v1.0.0
+git tag -a rails-8.1-v1.0.1 -m "Manyo evaluator for Rails 8.1"
+git push origin rails-8.1-v1.0.1
 ```
 
 リリース済みタグは変更・付け替えを行いません。修正時はパッチバージョンを上げます。
