@@ -1,17 +1,19 @@
 # cdp_web_manyo_evaluation_code
 
-「万葉」課題のStep 1〜5を、Ruby 4.0.5／Ruby on Rails 8.1.3で評価するRSpecです。
+「万葉」課題のStep 1〜5を、Ruby 4.0系／Ruby on Rails 8.1.3で評価するRSpecです。
 
 ## 対応バージョン
 
 - 評価コード: `rails-8.1-v1.0.0`
-- Ruby: 4.0.5
+- Ruby: 4.0系（4.0.0以上、4.1.0未満。標準環境は4.0.5）
 - Ruby on Rails: 8.1.3
 - PostgreSQL: 18.4
 - RSpec Rails: 8.x
 
 評価を再現できるよう、受講生向けCIと`bin/check`は評価コードのタグを固定して使用します。
 `master`を直接参照しないでください。
+
+互換性CIはRuby 4.0.5と4.0.6の両方で全Stepの評価コードを読み込み、Ruby 4.0系のパッチバージョン差で評価不能にならないことを確認します。
 
 ## 受講生による実行
 
