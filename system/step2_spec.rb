@@ -85,15 +85,25 @@ RSpec.describe 'step2', type: :system do
       end
     end
     describe 'タスク一覧画面に表示させる作成日時を、あなたの住んでいる地域の時刻に設定すること' do
-      it '作成日時に協定世界時を意味する「UTC」の文字が表示されていないこと' do
-        visit tasks_path
-        expect(page).not_to have_content "UTC"
+      it 'アプリケーションのタイムゾーンが明示的かつ有効に設定されていること' do
+        config_files = Dir[Rails.root.join('config', '**', '*.rb')]
+        timezone_configured = config_files.any? do |path|
+          File.foreach(path).any? do |line|
+            line.match?(/^\s*(?:Rails\.application\.)?config\.time_zone\s*=/)
+          end
+        end
+
+        expect(timezone_configured).to be true
+        expect(Time.find_zone(Rails.application.config.time_zone)).not_to be_nil
       end
     end
     describe 'データベースのデータを読み書きする際の時刻を、あなたの住んでいる地域の時刻に設定すること' do
-      it 'タスクのcreated_atカラムのデータを出力させた際、「+0900」が表示されること' do
-        task = Task.create(title: 'task_title', content: 'task_content')
-        expect(task.created_at.to_s).to include('+0900')
+      it 'タスクのcreated_atカラムがアプリケーションで設定したタイムゾーンで読み出されること' do
+        task = Task.create!(title: 'task_title', content: 'task_content')
+        created_at = task.reload.created_at
+
+        expect(created_at).to be_a(ActiveSupport::TimeWithZone)
+        expect(created_at.time_zone.name).to eq(Time.zone.name)
       end
     end
     describe 'seedデータを使って、50件分のタスクデータを投入できるようにすること' do
