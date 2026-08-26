@@ -7,14 +7,34 @@ require File.join(app_root, 'config/environment')
 # Prevent database truncation if the environment is production
 abort("The Rails environment is running in production mode!") if Rails.env.production?
 require 'rspec/rails'
+require 'capybara/rspec'
+require 'selenium-webdriver'
 # Add additional requires below this line. Rails is not loaded until this point!
+
+# System specs should wait for application-driven navigation and DOM updates,
+# rather than depending on runner speed. Selenium's normal page-load strategy
+# waits for the document load event, while Capybara's synchronized matchers
+# retry DOM queries for a bounded period.
+Capybara.default_max_wait_time = 5
+Capybara.default_retry_interval = 0.05
+
+Capybara.register_driver :manyo_selenium_chrome_headless do |app|
+  options = Selenium::WebDriver::Chrome::Options.new
+  options.add_argument('--headless=new')
+  options.add_argument('--window-size=1400,1400')
+  options.add_argument('--disable-dev-shm-usage') if ENV['CI']
+  options.add_argument('--no-sandbox') if ENV['CI']
+  options.page_load_strategy = :normal
+
+  Capybara::Selenium::Driver.new(app, browser: :chrome, options: options)
+end
 
 # Requires supporting ruby files with custom matchers and macros, etc, in
 # spec/support/ and its subdirectories. Files matching `spec/**/*_spec.rb` are
 # run as spec files by default. This means that files in spec/support that end
 # in _spec.rb will both be required and run as specs, causing the specs to be
 # run twice. It is recommended that you do not name files matching this glob to
-# end with _spec.rb. You can configure this pattern with the --pattern
+# end in _spec.rb. You can configure this pattern with the --pattern
 # option on the command line or in ~/.rspec, .rspec or `.rspec-local`.
 #
 # The following line is provided for convenience purposes. It has the downside
@@ -69,7 +89,7 @@ RSpec.configure do |config|
   # config.filter_gems_from_backtrace("gem name")
   config.before(:each) do |example|
     if example.metadata[:type] == :system
-      driven_by :selenium_chrome_headless
+      driven_by :manyo_selenium_chrome_headless
     end
   end
 end
