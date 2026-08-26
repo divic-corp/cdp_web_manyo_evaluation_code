@@ -76,6 +76,38 @@ jobs:
           cp app/Gemfile.lock evaluation/Gemfile.evaluation.lock
           bundle install --jobs 4 --retry 3
 
+      - name: Verify Chrome and Selenium stack
+        working-directory: app
+        run: |
+          google-chrome --version
+          bundle exec ruby - <<'RUBY'
+          require 'selenium-webdriver'
+
+          minimum = Gem::Version.new('4.47.0')
+          current = Gem::Version.new(Selenium::WebDriver::VERSION)
+          abort("selenium-webdriver #{current} is older than #{minimum}") if current < minimum
+
+          puts "selenium-webdriver #{current}"
+
+          options = Selenium::WebDriver::Chrome::Options.new
+          options.add_argument('--headless=new')
+          options.add_argument('--no-sandbox')
+          options.add_argument('--disable-dev-shm-usage')
+          options.page_load_strategy = :normal
+
+          driver = Selenium::WebDriver.for(:chrome, options: options)
+          begin
+            5.times do |index|
+              driver.navigate.to("data:text/html,<main id='ready'>ready-#{index}</main>")
+              text = driver.find_element(id: 'ready').text
+              raise "unexpected browser content: #{text}" unless text == "ready-#{index}"
+            end
+            puts 'Chrome/Selenium navigation smoke passed'
+          ensure
+            driver.quit
+          end
+          RUBY
+
       - name: Prepare test database
         working-directory: app
         run: bundle exec rails db:prepare
