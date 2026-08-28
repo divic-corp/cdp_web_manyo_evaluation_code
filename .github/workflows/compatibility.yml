@@ -50,11 +50,11 @@ jobs:
         with:
           path: evaluation
 
-      - name: Check out Rails starter
+      - name: Check out compatible Rails starter
         uses: actions/checkout@v7
         with:
-          repository: diveintocode-corp/cdp_web_manyo_task
-          ref: master
+          repository: divic-corp/cdp_web_manyo_task
+          ref: 7093ed7474606a38332c7e403ca89008cbf464b5
           path: app
 
       - name: Set up Ruby
