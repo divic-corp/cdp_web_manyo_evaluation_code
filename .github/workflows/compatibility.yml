@@ -26,6 +26,7 @@ jobs:
         image: postgres:18.4-alpine
         env:
           POSTGRES_HOST_AUTH_METHOD: trust
+          TZ: UTC
         ports:
           - 5432:5432
         options: >-
@@ -38,8 +39,10 @@ jobs:
       BUNDLE_GEMFILE: ${{ github.workspace }}/evaluation/Gemfile.evaluation
       DATABASE_URL: postgres://postgres@localhost:5432/manyo_test
       MANYO_APP_ROOT: ${{ github.workspace }}/app
+      PGTZ: UTC
       RAILS_ENV: test
       SECRET_KEY_BASE: evaluator-compatibility-test
+      TZ: UTC
 
     steps:
       - name: Check out evaluator
@@ -47,11 +50,11 @@ jobs:
         with:
           path: evaluation
 
-      - name: Check out Rails starter
+      - name: Check out compatible Rails starter
         uses: actions/checkout@v7
         with:
-          repository: diveintocode-corp/cdp_web_manyo_task
-          ref: master
+          repository: divic-corp/cdp_web_manyo_task
+          ref: 7093ed7474606a38332c7e403ca89008cbf464b5
           path: app
 
       - name: Set up Ruby
@@ -76,6 +79,13 @@ jobs:
           cp app/Gemfile.lock evaluation/Gemfile.evaluation.lock
           bundle install --jobs 4 --retry 3
 
+      - name: Verify evaluator synchronization helper
+        working-directory: evaluation
+        run: |
+          ruby -c rails_helper.rb
+          ruby -c support/system_spec_synchronization.rb
+          bundle exec rspec spec/system_spec_synchronization_spec.rb
+
       - name: Verify Chrome and Selenium stack
         working-directory: app
         run: |
@@ -97,7 +107,7 @@ jobs:
 
           driver = Selenium::WebDriver.for(:chrome, options: options)
           begin
-            5.times do |index|
+            25.times do |index|
               driver.navigate.to("data:text/html,<main id='ready'>ready-#{index}</main>")
               text = driver.find_element(id: 'ready').text
               raise "unexpected browser content: #{text}" unless text == "ready-#{index}"

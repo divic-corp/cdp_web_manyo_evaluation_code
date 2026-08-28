@@ -4,26 +4,31 @@
 
 ## 対応バージョン
 
-- 評価コード: `rails-8.1-v1.0.2`
+- 評価コード: `rails-8.1-v1.0.4`
 - Ruby: 4.0系（4.0.0以上、4.1.0未満。標準環境は4.0.5）
 - Ruby on Rails: 8.1.3
 - PostgreSQL: 18.4
 - RSpec Rails: 8.x
 - Selenium WebDriver: 4.47.0以上
 
-評価を再現できるよう、受講生向けCIと`bin/check`は評価コードのタグを固定して使用します。
+評価を再現できるよう、受講生向けCIと`bin/check`は評価コードのタグまたは固定SHAを使用します。
 `master`を直接参照しないでください。
 
-互換性CIはRuby 4.0.5と4.0.6の両方で全Stepの評価コードを読み込みます。また、GitHub ActionsにインストールされたChromeを実際にheadlessで起動し、Selenium Managerが対応するdriverを解決できることと、複数回の画面遷移・DOM参照が安定して動くことを確認します。
+互換性CIはRuby 4.0.5と4.0.6の両方で全Stepの評価コードを読み込みます。また、GitHub ActionsにインストールされたChromeを実際にheadlessで起動し、Selenium Managerが対応するdriverを解決できることと、連続した画面遷移・DOM参照が安定して動くことを確認します。
+互換性CIのstarterは、Selenium 4.47.0化を含む既知の互換commit `7093ed7474606a38332c7e403ca89008cbf464b5` に固定し、評価基盤側の検証条件がstarterの別変更で勝手に変わらないようにします。
 
 ## System Specの安定性
 
-評価用System Specは、実行runnerの速度差に依存しないよう次の方針で実行します。
+評価用System Specは、ブラウザ・Railsサーバ・RSpecプロセス間のタイミング差に評価結果が依存しないよう、次の方針で実行します。
 
 - Seleniumのpage load strategyは`normal`とし、通常のページ遷移ではdocumentのload完了を待つ
-- Capybaraの同期matcherは最大5秒待機する
+- Capybaraの同期matcherは最大10秒待機する
+- `visit`、要素クリック、確認ダイアログ承認後はRails controller requestの完了と短いquiet periodを確認してから次の評価へ進む
+- Chromeがdocument置換中に返す一時的な`Node with given id does not belong to the document`系エラーは、Capybaraの同期時間内で再評価する
+- browser-driven System Specではtransactional fixturesを使わず、各exampleの前後でtest DBを明示的にcleanにする
+- seed、受講生RSpec、前のEvaluator exampleが残したレコードを次のexampleへ持ち越さない
 - CIではChromeを`--headless=new`、`--disable-dev-shm-usage`、`--no-sandbox`で起動する
-- 固定` sleep`でタイミングを合わせない
+- 固定`sleep`でアプリケーションのタイミングを合わせない
 - ChromeDriverはlegacy `webdrivers` gemではなくSelenium Managerで解決する
 
 ## 受講生による実行
@@ -52,16 +57,17 @@ bundle exec rspec system/step1_spec.rb
 
 ## リリース手順
 
-1. `cdp_web_manyo_task`側で対応するSelenium依存関係更新を先にマージする
-2. GitHub ActionsのRails 8.1互換性チェックとChrome/Selenium smokeを成功させる
+1. `cdp_web_manyo_task`側でSelenium 4.47.0以上・Selenium Manager構成がmasterへ反映されていることを確認する
+2. GitHub ActionsのRails 8.1互換性チェック、同期helper regression test、Chrome/Selenium smokeを成功させる
 3. Step 1〜5の正解参照実装ですべての評価が成功することを確認する
 4. 代表的な要件を壊した実装で、対応する評価が失敗することを確認する
-5. 同一条件で3回実行し、結果が安定することを確認する
-6. `VERSION`と同じannotated tagを作成してpushする
+5. Step 4の正解参照実装を同一commit・同一条件で5回連続実行し、99 examplesの結果が5回とも一致することを確認する
+6. 実際にflaky failureが報告された受講生実装でも、同一commitで複数回の結果が一致することを確認する
+7. `VERSION`と同じannotated tagを作成してpushする
 
 ```bash
-git tag -a rails-8.1-v1.0.2 -m "Manyo evaluator for Rails 8.1"
-git push origin rails-8.1-v1.0.2
+git tag -a rails-8.1-v1.0.4 -m "Manyo evaluator for Rails 8.1"
+git push origin rails-8.1-v1.0.4
 ```
 
 リリース済みタグは変更・付け替えを行いません。修正時はパッチバージョンを上げます。
