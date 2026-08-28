@@ -1,0 +1,118 @@
+name: v1.0.4 learner regression
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/v1_0_4_learner_regression.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  step4-regression:
+    name: ${{ matrix.learner }} / run ${{ matrix.iteration }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - learner: atarashi
+            repository: c8bji5ma-lgtm/for_cdp_web_manyo_task
+            ref: 3ed29c1732604efc86fbbceccf79813793eac756
+            iteration: 1
+          - learner: atarashi
+            repository: c8bji5ma-lgtm/for_cdp_web_manyo_task
+            ref: 3ed29c1732604efc86fbbceccf79813793eac756
+            iteration: 2
+          - learner: atarashi
+            repository: c8bji5ma-lgtm/for_cdp_web_manyo_task
+            ref: 3ed29c1732604efc86fbbceccf79813793eac756
+            iteration: 3
+          - learner: atarashi
+            repository: c8bji5ma-lgtm/for_cdp_web_manyo_task
+            ref: 3ed29c1732604efc86fbbceccf79813793eac756
+            iteration: 4
+          - learner: atarashi
+            repository: c8bji5ma-lgtm/for_cdp_web_manyo_task
+            ref: 3ed29c1732604efc86fbbceccf79813793eac756
+            iteration: 5
+          - learner: adachi
+            repository: arduino0420/cdp_web_manyo_task
+            ref: d4b93cdf34883d1bf8594704bf125352f2f75a66
+            iteration: 1
+          - learner: adachi
+            repository: arduino0420/cdp_web_manyo_task
+            ref: d4b93cdf34883d1bf8594704bf125352f2f75a66
+            iteration: 2
+          - learner: adachi
+            repository: arduino0420/cdp_web_manyo_task
+            ref: d4b93cdf34883d1bf8594704bf125352f2f75a66
+            iteration: 3
+          - learner: adachi
+            repository: arduino0420/cdp_web_manyo_task
+            ref: d4b93cdf34883d1bf8594704bf125352f2f75a66
+            iteration: 4
+          - learner: adachi
+            repository: arduino0420/cdp_web_manyo_task
+            ref: d4b93cdf34883d1bf8594704bf125352f2f75a66
+            iteration: 5
+
+    services:
+      postgres:
+        image: postgres:18.4-alpine
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          TZ: UTC
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgres://postgres@localhost:5432/manyo_test
+      MANYO_EVALUATOR_REPOSITORY: https://github.com/divic-corp/cdp_web_manyo_evaluation_code.git
+      MANYO_EVALUATOR_REF: c268aef85d4315c686528b4a4057114aaab4d857
+      PGTZ: UTC
+      RAILS_ENV: test
+      SECRET_KEY_BASE: manyo-v1-0-4-regression
+      TZ: UTC
+
+    steps:
+      - name: Check out learner application
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ matrix.repository }}
+          ref: ${{ matrix.ref }}
+
+      - name: Set up Ruby and Bundler
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24.18.0
+          cache: yarn
+
+      - name: Install JavaScript dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Show fixed inputs
+        run: |
+          echo "learner=${{ matrix.learner }}"
+          echo "learner_ref=${{ matrix.ref }}"
+          echo "iteration=${{ matrix.iteration }}"
+          google-chrome --version
+          bundle exec ruby -e 'require "selenium-webdriver"; puts "selenium-webdriver #{Selenium::WebDriver::VERSION}"'
+
+      - name: Compile test webpack assets
+        run: bundle exec rails webpacker:compile
+
+      - name: Run Step 4 with evaluator v1.0.4
+        run: bin/check step4
