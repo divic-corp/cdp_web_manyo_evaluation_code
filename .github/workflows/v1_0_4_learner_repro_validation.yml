@@ -39,7 +39,7 @@ jobs:
           --health-retries 5
 
     env:
-      BUNDLE_GEMFILE: ${{ github.workspace }}/evaluation/Gemfile.evaluation
+      BUNDLE_GEMFILE: ${{ github.workspace }}/app/Gemfile
       DATABASE_URL: postgres://postgres@localhost:5432/manyo_test
       MANYO_APP_ROOT: ${{ github.workspace }}/app
       PGTZ: UTC
@@ -78,9 +78,8 @@ jobs:
         run: yarn install --frozen-lockfile
 
       - name: Install Ruby dependencies
-        run: |
-          cp app/Gemfile.lock evaluation/Gemfile.evaluation.lock
-          bundle install --jobs 4 --retry 3
+        working-directory: app
+        run: bundle install --jobs 4 --retry 3
 
       - name: Show browser stack
         working-directory: app
