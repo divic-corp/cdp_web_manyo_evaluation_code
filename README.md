@@ -15,6 +15,7 @@
 `master`を直接参照しないでください。
 
 互換性CIはRuby 4.0.5と4.0.6の両方で全Stepの評価コードを読み込みます。また、GitHub ActionsにインストールされたChromeを実際にheadlessで起動し、Selenium Managerが対応するdriverを解決できることと、連続した画面遷移・DOM参照が安定して動くことを確認します。
+互換性CIのstarterは、Selenium 4.47.0化を含む既知の互換commit `7093ed7474606a38332c7e403ca89008cbf464b5` に固定し、評価基盤側の検証条件がstarterの別変更で勝手に変わらないようにします。
 
 ## System Specの安定性
 
@@ -56,7 +57,7 @@ bundle exec rspec system/step1_spec.rb
 
 ## リリース手順
 
-1. `cdp_web_manyo_task`側のSelenium依存関係が4.47.0以上であることを確認する
+1. `cdp_web_manyo_task`側でSelenium 4.47.0以上・Selenium Manager構成がmasterへ反映されていることを確認する
 2. GitHub ActionsのRails 8.1互換性チェック、同期helper regression test、Chrome/Selenium smokeを成功させる
 3. Step 1〜5の正解参照実装ですべての評価が成功することを確認する
 4. 代表的な要件を壊した実装で、対応する評価が失敗することを確認する
