@@ -1,0 +1,143 @@
+name: v1.0.4 learner reproduction validation
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  step4-stability:
+    name: Step 4 stability / ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Yuki Atarashi
+            repository: c8bji5ma-lgtm/for_cdp_web_manyo_task
+            ref: 3ed29c1732604efc86fbbceccf79813793eac756
+          - name: Yukinori Adachi
+            repository: arduino0420/cdp_web_manyo_task
+            ref: d4b93cdf34883d1bf8594704bf125352f2f75a66
+
+    services:
+      postgres:
+        image: postgres:18.4-alpine
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          TZ: UTC
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      BUNDLE_GEMFILE: ${{ github.workspace }}/evaluation/Gemfile.evaluation
+      DATABASE_URL: postgres://postgres@localhost:5432/manyo_test
+      MANYO_APP_ROOT: ${{ github.workspace }}/app
+      PGTZ: UTC
+      RAILS_ENV: test
+      SECRET_KEY_BASE: evaluator-v1-0-4-repro-validation
+      TZ: UTC
+
+    steps:
+      - name: Check out evaluator
+        uses: actions/checkout@v7
+        with:
+          path: evaluation
+
+      - name: Check out affected learner commit
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ matrix.repository }}
+          ref: ${{ matrix.ref }}
+          path: app
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '4.0.5'
+          bundler: 4.0.10
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24.18.0
+          cache: yarn
+          cache-dependency-path: app/yarn.lock
+
+      - name: Install JavaScript dependencies
+        working-directory: app
+        run: yarn install --frozen-lockfile
+
+      - name: Install Ruby dependencies
+        run: |
+          cp app/Gemfile.lock evaluation/Gemfile.evaluation.lock
+          bundle install --jobs 4 --retry 3
+
+      - name: Show browser stack
+        working-directory: app
+        run: |
+          google-chrome --version
+          bundle exec ruby -e 'require "selenium-webdriver"; puts "selenium-webdriver #{Selenium::WebDriver::VERSION}"'
+
+      - name: Compile test assets
+        working-directory: app
+        run: bundle exec rails webpacker:compile
+
+      - name: Prepare test database
+        working-directory: app
+        run: bundle exec rails db:prepare
+
+      - name: Run Step 4 evaluator five times
+        working-directory: app
+        shell: bash
+        run: |
+          mkdir -p ../validation
+          for run in 1 2 3 4 5; do
+            echo "===== Step 4 evaluator run ${run}/5 ====="
+            set +e
+            bundle exec rspec ../evaluation/system/step4_spec.rb \
+              --format progress \
+              --format json --out "../validation/run-${run}.json"
+            status=$?
+            set -e
+            echo "RSpec exit status: ${status}"
+          done
+
+      - name: Verify identical results across all five runs
+        run: |
+          ruby <<'RUBY'
+          require 'json'
+          require 'digest'
+
+          files = Dir['validation/run-*.json'].sort
+          abort "expected 5 result files, got #{files.length}" unless files.length == 5
+
+          fingerprints = files.map do |file|
+            report = JSON.parse(File.read(file))
+            summary = report.fetch('summary')
+            abort "#{file}: expected 99 examples, got #{summary['example_count']}" unless summary['example_count'] == 99
+
+            results = report.fetch('examples').map do |example|
+              [example.fetch('full_description'), example.fetch('status')]
+            end.sort
+
+            fingerprint = Digest::SHA256.hexdigest(JSON.generate(results))
+            failures = results.select { |_, status| status == 'failed' }.map(&:first)
+
+            puts "#{file}: examples=#{summary['example_count']} failures=#{summary['failure_count']} pending=#{summary['pending_count']} fingerprint=#{fingerprint}"
+            failures.each { |description| puts "  FAIL: #{description}" }
+            fingerprint
+          end
+
+          abort "Step 4 result changed across repeated runs: #{fingerprints.join(', ')}" unless fingerprints.uniq.one?
+          puts 'PASS: all five Step 4 runs produced the same example-by-example result.'
+          RUBY
