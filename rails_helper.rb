@@ -38,9 +38,9 @@ end
 # option on the command line or in ~/.rspec, .rspec or `.rspec-local`.
 #
 # The following line is provided for convenience purposes. It has the downside
-# of increasing the boot-up time by auto-requiring all files in the support
-# directory. Alternatively, in the individual `*_spec.rb` files, manually
-# require only the support files necessary.
+# of increasing the boot-up time by auto-requiring all the support files.
+# Alternatively, in the individual `*_spec.rb` files, manually require only the
+# support files necessary.
 #
 # Dir[Rails.root.join('spec', 'support', '**', '*.rb')].sort.each { |f| require f }
 
@@ -52,6 +52,7 @@ rescue ActiveRecord::PendingMigrationError => e
   puts e.to_s.strip
   exit 1
 end
+
 RSpec.configure do |config|
   # Remove this line if you're not using ActiveRecord or ActiveRecord fixtures
   if config.respond_to?(:fixture_paths=)
@@ -65,6 +66,18 @@ RSpec.configure do |config|
   # instead of true.
   config.use_transactional_fixtures = true
 
+  # Step 4 must not depend on records created by db:prepare/seeds, learner specs,
+  # or a previous evaluator example. This hook is intentionally prepended so it
+  # runs before top-level let! hooks create the evaluator's own users/tasks.
+  # The deletes occur inside each example transaction, so the learner database
+  # is not permanently modified by the evaluator.
+  config.prepend_before(:each, type: :system) do |example|
+    next unless File.basename(example.metadata[:file_path].to_s) == 'step4_spec.rb'
+
+    Task.delete_all if defined?(Task) && Task.table_exists?
+    User.delete_all if defined?(User) && User.table_exists?
+  end
+
   # You can uncomment this line to turn off ActiveRecord support entirely.
   # config.use_active_record = false
 
@@ -76,7 +89,7 @@ RSpec.configure do |config|
   # explicitly tag your specs with their type, e.g.:
   #
   #     RSpec.describe UsersController, type: :controller do
-  #       # ...
+  #       ...
   #     end
   #
   # The different available types are documented in the features, such as in
