@@ -9,14 +9,24 @@ abort("The Rails environment is running in production mode!") if Rails.env.produ
 require 'rspec/rails'
 require 'capybara/rspec'
 require 'selenium-webdriver'
+require_relative 'support/system_spec_synchronization'
 # Add additional requires below this line. Rails is not loaded until this point!
 
 # System specs should wait for application-driven navigation and DOM updates,
-# rather than depending on runner speed. Selenium's normal page-load strategy
-# waits for the document load event, while Capybara's synchronized matchers
-# retry DOM queries for a bounded period.
-Capybara.default_max_wait_time = 5
+# rather than depending on runner speed. The evaluator also tracks completed
+# Rails controller requests so browser actions do not race the following DOM or
+# database assertion.
+Capybara.default_max_wait_time = 10
 Capybara.default_retry_interval = 0.05
+
+class ManyoSeleniumDriver < Capybara::Selenium::Driver
+  # Chrome can transiently surface an inspector UnknownError while replacing a
+  # document. Capybara retries invalid-element errors only inside its normal
+  # synchronization window, so a persistent browser error still fails.
+  def invalid_element_errors
+    super + [Selenium::WebDriver::Error::UnknownError]
+  end
+end
 
 Capybara.register_driver :manyo_selenium_chrome_headless do |app|
   options = Selenium::WebDriver::Chrome::Options.new
@@ -26,7 +36,7 @@ Capybara.register_driver :manyo_selenium_chrome_headless do |app|
   options.add_argument('--no-sandbox') if ENV['CI']
   options.page_load_strategy = :normal
 
-  Capybara::Selenium::Driver.new(app, browser: :chrome, options: options)
+  ManyoSeleniumDriver.new(app, browser: :chrome, options: options)
 end
 
 # Requires supporting ruby files with custom matchers and macros, etc, in
@@ -61,21 +71,21 @@ RSpec.configure do |config|
     config.fixture_path = Rails.root.join('spec/fixtures').to_s
   end
 
-  # If you're not using ActiveRecord, or you'd prefer not to run each of your
-  # examples within a transaction, remove the following line or assign false
-  # instead of true.
-  config.use_transactional_fixtures = true
+  # Browser-driven system specs run the Rails application in a server thread.
+  # Keep evaluator records committed and clean the test database explicitly so
+  # the browser and the RSpec process always observe the same state.
+  config.use_transactional_fixtures = false
 
-  # Step 4 must not depend on records created by db:prepare/seeds, learner specs,
-  # or a previous evaluator example. This hook is intentionally prepended so it
-  # runs before top-level let! hooks create the evaluator's own users/tasks.
-  # The deletes occur inside each example transaction, so the learner database
-  # is not permanently modified by the evaluator.
-  config.prepend_before(:each, type: :system) do |example|
-    next unless File.basename(example.metadata[:file_path].to_s) == 'step4_spec.rb'
+  config.prepend_before(:each, type: :system) do
+    ManyoSystemSpecSynchronization.wait_until_idle
+    Capybara.reset_sessions!
+    ManyoSystemSpecSynchronization.clean_database!
+  end
 
-    Task.delete_all if defined?(Task) && Task.table_exists?
-    User.delete_all if defined?(User) && User.table_exists?
+  config.append_after(:each, type: :system) do
+    ManyoSystemSpecSynchronization.wait_until_idle
+    Capybara.reset_sessions!
+    ManyoSystemSpecSynchronization.clean_database!
   end
 
   # You can uncomment this line to turn off ActiveRecord support entirely.
